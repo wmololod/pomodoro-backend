@@ -7,10 +7,11 @@ import time
 app = Flask(__name__)
 
 TELEGRAM_TOKEN = '7907772455:AAGGwFsj4yO0gc9hiIeyG6R9pXFW9z7xQcg'
-CHAT_ID = '6045736248'  # Замени на свой chat_id
+CHAT_ID = '6045736248'  # Замените на свой chat_id
 
 # Пример данных для хранения количества Pomodoro циклов
 pomodoro_data = {}
+stats_storage = {}  # Новое хранилище для статистики
 
 def save_pomodoro_count(day, count):
     pomodoro_data[day] = count
@@ -74,12 +75,34 @@ def notify_id():
     requests.post(url, data={'chat_id': chat_id, 'text': text})
     return 'ok'
 
+@app.route('/save-stats', methods=['POST'])
+def save_stats():
+    data = request.json
+    chat_id = data.get('chat_id')
+    date = data.get('date')
+
+    if chat_id not in stats_storage:
+        stats_storage[chat_id] = {}
+
+    if date not in stats_storage[chat_id]:
+        stats_storage[chat_id][date] = 0
+
+    stats_storage[chat_id][date] += 1
+
+    return jsonify({"success": True, "stats": stats_storage[chat_id]})
+
+@app.route('/get-stats', methods=['GET'])
+def get_stats():
+    chat_id = request.args.get('chat_id')
+    stats = stats_storage.get(chat_id, {})
+    return jsonify(stats)
+
 def schedule_reports():
     while True:
         now = datetime.datetime.now()
-        if now.hour == 22:  # 18:00 каждый день
+        if now.hour == 22:  # 22:00 каждый день
             send_daily_report()
-        if now.weekday() == 6 and now.hour == 22:  # Воскресенье, 18:00
+        if now.weekday() == 6 and now.hour == 22:  # Воскресенье, 22:00
             send_weekly_report()
         time.sleep(3600)  # Проверка каждый час
 
